@@ -56,7 +56,8 @@ def cross_validation(model_list, x, y, splitter, scorer_list, average=None,
     return results
 
 
-def evaluate(model, data_loader, scorer_list, ts_writer, cuda, average='macro'):
+def evaluate(model, data_loader, scorer_list, ts_writer, cuda,
+             average='macro'):
     model.eval()
     for scorer_name, scorer in scorer_list.items():
         valid_y, y_pred = prediction(model, data_loader, cuda, label=True)
@@ -70,7 +71,7 @@ def evaluate(model, data_loader, scorer_list, ts_writer, cuda, average='macro'):
                 model.config[scorer_name] = score
         except KeyError:
             model.config[scorer_name] = score
-        ts_writer[scorer_name].add_scalar(scorer_name, score,
-                                          model.config["global_step"])
-        logging.info(f"{scorer_name}: scorer")
+        ts_writer["tensorboard_writer"].add_scalar(scorer_name, score,
+                                                   model.config["global_step"])
+        logging.info(f"{scorer_name}: {score}")
     model.train()

@@ -2,22 +2,12 @@ from train import main
 import torch
 import logging
 import numpy as np
-import pandas as pd
-from utils import prep_data, worker_init_fn, quadratic_weighted_kappa
-from ann import Ordinal_regression, create_module
-import torch.nn as nn
-import time
-import datetime
-from tensorboardX import SummaryWriter
-import os
+from utils import prep_data
+from ann_2 import Ordinal_regression, create_module
 import json
-from data import CustData
-from sklearn.preprocessing import MinMaxScaler
-from torch.utils.data import DataLoader
 import random
-from evaluate import evaluate, Within_n_rank
-from sklearn.metrics import f1_score, accuracy_score
-from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.preprocessing import MinMaxScaler
+
 
 if __name__ == '__main__':
     for seed in range(1, 2):
@@ -41,15 +31,17 @@ if __name__ == '__main__':
 #        with open('../5Others/2019-01-07_00_57_25.027646.txt', 'rb') as fp:
 #        with open('../5Others/config.txt', 'rb') as fp:
         with open('../5Others/tuning.txt', 'rb') as fp:
-    #    with open('../4TrainingWeights/2019-01-06_00_40_22.960024/2019-01-06_02_39_53.326797.txt', 'rb') as fp:
+    #    with open(         '../4TrainingWeights/2019-01-06_00_40_22.960024/2019-01-06_02_39_53.326797.txt', 'rb') as fp:
             param = json.load(fp)
-        num_nodes_list = [32, 64, 128]
-        layer_numbers = [2, 3, 4]
+        num_nodes_list = [4, 8, 16, 32, 64, 128, 256]
+        layer_numbers = [1, 2, 3, 4]
         for num_nodes in num_nodes_list:
             param['output_dim'] = num_nodes
             for layer_number in layer_numbers:
                 param['num_of_layers'] = layer_number
+                param['working_dir'] = (f"{param['working_dir']}" + 
+                                        f"num_nodes_{num_nodes}_" +
+                                        f"layer_number_{layer_number}/")
                 model = Ordinal_regression(create_module, config=param)
-                print(model.state_dict())
                 print(model.modules_list)
                 main(model, x_scaled, y, cuda, optimizer_name='adam')

@@ -72,6 +72,7 @@ def train(model, optimizer, train_loader, test_loader, scorer_list,
     logging.info("Start training.")
     for epoch in range(model.config['epochs']):
         save = 1
+        eva = 1
         logging.info("this is epoch :{}".format(epoch))
         for step, samples in enumerate(train_loader):
             if cuda:
@@ -102,15 +103,17 @@ def train(model, optimizer, train_loader, test_loader, scorer_list,
                                             'loss',
                                             _loss,
                                             model.config["global_step"])
-                if save and (epoch+1) % model.config['save_epoch'] == 0:
-                    _save_checkpoint(model, model.state_dict(), save_txt)
+                if eva and (epoch+1) % model.config['eva_epoch'] == 0:
                     evaluate(model, test_loader, scorer_list,
                              ts_writer, cuda)
+                    eva = 0
+                if save and (epoch+1) % model.config['save_epoch'] == 0:
+                    _save_checkpoint(model, model.state_dict(), save_txt)
                     save = 0
         if optimizer_name == 'sgd':
             lr_scheduler.step()
-    _save_checkpoint(model, model.state_dict(), save_txt)
     evaluate(model, test_loader, scorer_list, ts_writer, cuda)
+    _save_checkpoint(model, model.state_dict(), save_txt)
     logging.info("Bye~")
 
 

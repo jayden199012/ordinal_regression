@@ -6,6 +6,7 @@ from lightgbm import LGBMRegressor
 from scipy.optimize import fmin_powell
 from sklearn.metrics import f1_score, accuracy_score
 from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.linear_model import Lasso
 from sklearn.linear_model import Ridge
 from sklearn import linear_model
@@ -49,11 +50,17 @@ quadratic_weighted_kappa(train_y_pred, y)
 # =============================================================================
 # Pure regression based
 # =============================================================================
+scaler = MinMaxScaler(feature_range=(0, 1))
+x_scaled = x.copy()
+x_scaled[:] = scaler.fit_transform(x)
+test_x_scaled = test_x.copy()
+test_x_scaled[:] = scaler.fit_transform(test_x)
+
 # lasso
 lasso = Lasso(alpha=0.001, max_iter=5000)
-lasso.fit(x, y)
-train_y_pred = lasso.predict(x)
-test_pred = lasso.predict(test_x)
+lasso.fit(x_scaled, y)
+train_y_pred = lasso.predict(x_scaled)
+test_pred = lasso.predict(test_x_scaled)
 
 # drop non important features (optional)
 lasso_feature_importance = pd.Series(data=lasso.coef_,
@@ -120,11 +127,18 @@ for k in range(8):
 
 # we can essemble multple probabilities using different models
 
+scaler = MinMaxScaler(feature_range=(0, 1))
+x_scaled = x_2_step.copy()
+x_scaled[:] = scaler.fit_transform(x_2_step)
+test_x_scaled = test_x_2_step.copy()
+test_x_scaled[:] = scaler.transform(test_x_2_step)
+
 # regression model after the first step
 lr = linear_model.LinearRegression()
-lr.fit(x_2_step, y)
-train_y_pred = lr.predict(x_2_step)
-test_pred = lr.predict(test_x_2_step)
+lr.fit(x_scaled, y)
+train_y_pred = lr.predict(x_scaled)
+test_pred = lr.predict(test_x_scaled)
+
 # %%
 # =============================================================================
 # cross validation for all models
@@ -135,11 +149,16 @@ test_pred = lr.predict(test_x_2_step)
 # def within_n_rank(y, y_pred, offset=2):
 #    return len(y[abs(y-y_pred) <= offset]) / len(y)
 
-
+# initiate with_n_rank object
 two_off_set = Within_n_rank(2)
+
+# set seed
 seed = 1
 random.seed(seed)
 np.random.seed(seed)
+
+
+# initial offset values
 # x0 = (1.5, 2.9, 3.1, 4.5, 5.5, 6.1, 7.1)
 x0 = (1, 2., 3., 4., 5., 6., 7.)
 s = StratifiedShuffleSplit(n_splits=5, test_size=0.2)
@@ -169,9 +188,6 @@ y_pred = np.asarray(digit(offsets, test_pred))
 # =============================================================================
 # output transformation for regression based models
 # =============================================================================
-# initial offset values
-
-
 # find the offset
 offsets = fmin_powell(train_offset, x0, (y, train_y_pred), maxiter=20000,
                       disp=True)
