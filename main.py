@@ -11,7 +11,7 @@ from sklearn.linear_model import Ridge
 from sklearn import linear_model
 from utils import prep_data, quadratic_weighted_kappa, train_offset, digit,\
     feature_importance_plot
-from evaluate import y_transform, cross_validation
+from evaluate import y_transform, cross_validation, Within_n_rank
 import mord
 import random
 # =============================================================================
@@ -132,10 +132,11 @@ test_pred = lr.predict(test_x_2_step)
 # cv
 
 
-def within_n_rank(y, y_pred, offset=2):
-    return len(y[abs(y-y_pred) <= offset]) / len(y)
+# def within_n_rank(y, y_pred, offset=2):
+#    return len(y[abs(y-y_pred) <= offset]) / len(y)
 
 
+two_off_set = Within_n_rank(2)
 seed = 1
 random.seed(seed)
 np.random.seed(seed)
@@ -144,7 +145,7 @@ x0 = (1, 2., 3., 4., 5., 6., 7.)
 s = StratifiedShuffleSplit(n_splits=5, test_size=0.2)
 scorer_list = {'quadratic_weighted_kappa': quadratic_weighted_kappa,
                'f1_score': f1_score,
-               'within_n_rank': within_n_rank,
+               'two_off_set': two_off_set,
                'accuracy_score': accuracy_score}
 
 model_list = {'lasso': lasso,
@@ -153,7 +154,7 @@ results = cross_validation(model_list, x, y, s, scorer_list,
                            y_tranformation=y_transform, average='macro', x0=x0,
                            maxiter=20000)
 accuracy_score(y, train_y_pred)
-within_n_rank(y, train_y_pred)
+Within_n_rank(y, train_y_pred)
 # =============================================================================
 # Tuning
 # =============================================================================
