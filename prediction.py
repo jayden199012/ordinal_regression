@@ -17,7 +17,7 @@ def prediction(model, data_loadaer, cuda, label=False):
         for item in data_loadaer:
             data = item['data']
             if label:
-                labels.append(data = item['label'])
+                labels.append(item['label'])
             first = True
             if cuda:
                 data = data.cuda()

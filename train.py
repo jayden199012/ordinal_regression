@@ -41,8 +41,7 @@ def _save_checkpoint(model, state_dict, save_txt=True):
 
 
 def train(model, optimizer, train_loader, test_loader, scorer_list,
-          cuda, optimizer_name='sgd',  save_txt=True, sub_name='',
-          **kwargs):
+          cuda, optimizer_name='sgd', save_txt=True, sub_name=''):
     ts_writer = {}
     date_time_now = str(
             datetime.datetime.now()).replace(" ", "_").replace(":", "_")
@@ -106,13 +105,12 @@ def train(model, optimizer, train_loader, test_loader, scorer_list,
                 if save and (epoch+1) % model.config['save_epoch'] == 0:
                     _save_checkpoint(model, model.state_dict(), save_txt)
                     evaluate(model, test_loader, scorer_list,
-                             ts_writer, cuda, **kwargs)
+                             ts_writer, cuda)
                     save = 0
         if optimizer_name == 'sgd':
             lr_scheduler.step()
     _save_checkpoint(model, model.state_dict(), save_txt)
-    evaluate(model, test_loader, scorer_list, ts_writer, cuda,
-             **kwargs)
+    evaluate(model, test_loader, scorer_list, ts_writer, cuda)
     logging.info("Bye~")
 
 
