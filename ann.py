@@ -23,8 +23,8 @@ def create_module(input_dim, output_dim, label_num, num_of_layers,
         if i not in short_cut_layers:
             ln = nn.Linear(input_dim, output_dim)
             input_dim = output_dim
-            module.add_module(f"fc_layer{i}", ln)
-            module.add_module(f"relu_{i}", nn.ReLU())
+            module.add_module(f"hidden_layer_{i}", ln)
+            module.add_module(f"LeakyReLU_{i}", nn.LeakyReLU())
         else:
             special_layer(module, i, 'scl')
         module_list.append(module)
@@ -70,5 +70,5 @@ class Ordinal_regression(nn.Module):
             loss = self.bce_loss(x, labels)
             return loss
         else:
-            prediction = torch.sum(x.round(), dim=1) +1
+            prediction = torch.sum(x.round(), dim=1) + 1
             return prediction

@@ -2,7 +2,7 @@ import torch
 import logging
 import numpy as np
 import pandas as pd
-from utils import prep_data, worker_init_fn
+from utils import prep_data, worker_init_fn, quadratic_weighted_kappa
 from ann import Ordinal_regression, create_module
 import torch.nn as nn
 import time
@@ -14,6 +14,9 @@ from data import CustData
 from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 import random
+from evaluate import evaluate, Within_n_rank
+from sklearn.metrics import f1_score, accuracy_score
+from sklearn.model_selection import StratifiedShuffleSplit
 
 
 def weights_init(m, stdv=0.05):
@@ -37,8 +40,8 @@ def _save_checkpoint(model, state_dict, save_txt=True):
             file.write(json.dumps(model.config, indent=4))
 
 
-def train(model, optimizer, train_loader, cuda, optimizer_name='sgd',
-          save_txt=True, sub_name=''):
+def train(model, optimizer, train_loader, test_loader, scorer_list,
+          cuda, optimizer_name='sgd', save_txt=True, sub_name=''):
     ts_writer = {}
     date_time_now = str(
             datetime.datetime.now()).replace(" ", "_").replace(":", "_")
@@ -101,10 +104,13 @@ def train(model, optimizer, train_loader, cuda, optimizer_name='sgd',
                                             model.config["global_step"])
                 if save and (epoch+1) % model.config['save_epoch'] == 0:
                     _save_checkpoint(model, model.state_dict(), save_txt)
+                    evaluate(model, test_loader, scorer_list,
+                             ts_writer, cuda)
                     save = 0
         if optimizer_name == 'sgd':
             lr_scheduler.step()
     _save_checkpoint(model, model.state_dict(), save_txt)
+    evaluate(model, test_loader, scorer_list, ts_writer, cuda)
     logging.info("Bye~")
 
 
@@ -119,14 +125,30 @@ def main(model, x, y, cuda, optimizer_name):
                                 lr=model.config["learning_rate"],
                                 weight_decay=model.config["decay"])}
     optimizer = optimizer_dic[optimizer_name.lower()]
-    train_data = CustData(x, y, model.config['label_num'], train=True)
+    two_off_set = Within_n_rank(2)
+    scorer_list = {'quadratic_weighted_kappa': quadratic_weighted_kappa,
+                   'f1_score': f1_score,
+                   'two_off_set': two_off_set,
+                   'accuracy_score': accuracy_score}
+    s = StratifiedShuffleSplit(n_splits=1, test_size=0.2)
+    train_index, val_index = next(iter(s.split(x, y)))
+    train_x, train_y = (x.iloc[train_index, :].reset_index(drop=True),
+                        y[train_index].reset_index(drop=True))
+    valid_x, valid_y = (x.iloc[val_index, :].reset_index(drop=True),
+                        y[val_index].reset_index(drop=True))
+    train_data = CustData(train_x, train_y, model.config['label_num'],
+                          train=True)
     train_loader = DataLoader(train_data, shuffle=True,
-                              # batch_size=model.config["batch"],
                               batch_size=int(len(train_data)*0.9),
                               num_workers=6, worker_init_fn=worker_init_fn)
-
+    test_data = CustData(valid_x, valid_y, model.config['label_num'],
+                         train=True)
+    test_loader = DataLoader(test_data, shuffle=False,
+                             batch_size=len(test_data),
+                             num_workers=6, worker_init_fn=worker_init_fn)
     # Start training
-    train(model, optimizer, train_loader, cuda, optimizer_name.lower())
+    train(model, optimizer, train_loader, test_loader, scorer_list,
+          cuda, optimizer_name.lower())
 
 
 if __name__ == '__main__':
@@ -143,7 +165,7 @@ if __name__ == '__main__':
         x = train_set.drop(columns_to_drop, axis=1)
         scaler = MinMaxScaler(feature_range=(0, 1))
         x_scaled = x.copy()
-        x_scaled[:] = scaler.fit_transform(x)
+        x_scaled[:] = scaler.fit_transform(x_scaled)
         y = train_set.Response-1
         input_dim = len(x_scaled.columns)
         #    with open('../5Others/config.txt', 'w') as fp:
