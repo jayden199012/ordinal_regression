@@ -3,7 +3,7 @@ import torch
 import logging
 import numpy as np
 from utils import prep_data
-from ann import Ordinal_regression, create_module
+from ann_2 import Ordinal_regression, create_module
 import json
 import random
 from sklearn.preprocessing import MinMaxScaler
@@ -44,7 +44,7 @@ if __name__ == '__main__':
             param['output_dim'] = num_nodes
             for layer_number in layer_numbers:
                 param['num_of_layers'] = layer_number
-                param['working_dir'] = (f"{w_dir}/" + 
+                param['working_dir'] = (f"{w_dir}_2/" + 
                                         f"num_nodes_{num_nodes}_" +
                                         f"layer_number_{layer_number}/")
                 model = Ordinal_regression(create_module, config=param)

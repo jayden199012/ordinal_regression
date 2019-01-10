@@ -17,7 +17,8 @@ def prediction(model, data_loadaer, cuda, label=False):
         for item in data_loadaer:
             data = item['data']
             if label:
-                labels.append(item['label'])
+                label_ = torch.sum(item['label'], dim=1).cpu().numpy()
+                labels.extend(label_)
             first = True
             if cuda:
                 data = data.cuda()
@@ -28,10 +29,11 @@ def prediction(model, data_loadaer, cuda, label=False):
                 predictions += predictions_
         final_prediction = predictions.cpu().numpy()
         if label:
-            return labels, final_prediction
+            return np.array(labels), final_prediction
         else:
             return final_prediction
-    
+
+
 def main():
     seed = 1
     random.seed(seed)
@@ -51,7 +53,7 @@ def main():
     test_loader = DataLoader(test_data, batch_size=len(test_data), num_workers=6,
                              worker_init_fn=worker_init_fn)
     #with open('../5Others/config.txt', 'rb') as fp:
-    with open('../4TrainingWeights/2019-01-07_01_11_29.949295/2019-01-07_03_51_05.354454.txt', 'rb') as fp:
+    with open('../4TrainingWeights/tuning/num_node_layer_num_2/num_nodes_4_layer_number_1/2019-01-09_19_52_05.228091/2019-01-09_20_58_52.175551.txt', 'rb') as fp:
     #with open('../4TrainingWeights/2019-01-06_09_45_38.867660/2019-01-06_11_28_41.798519.txt', 'rb') as fp:
         param = json.load(fp)
     model = Ordinal_regression(create_module, config=param)
@@ -61,6 +63,12 @@ def main():
         model.cuda()
     model.eval()
     final_prediction = prediction(model, test_loader, cuda)
+#    test_loader = DataLoader(test_data, batch_size=len(test_data), num_workers=6,
+#                             worker_init_fn=worker_init_fn)
+#    y, final_prediction = prediction(model, test_loader, cuda, label= True)
+#    len(y[abs(y-final_prediction) <= 2]) / len(y)
+#    y = list(map(int, y))
+#    accuracy_score(y, final_prediction)
     submission = pd.read_csv('../1TestData/sample_submission.csv', index_col=0)
     submission['Response'] = final_prediction.astype('int32')
     submission.to_csv('submit.csv')

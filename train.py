@@ -19,10 +19,7 @@ from sklearn.metrics import f1_score, accuracy_score
 from sklearn.model_selection import StratifiedShuffleSplit
 
 
-def weights_init(m, stdv=0.05):
-    if isinstance(m, nn.Linear):
-        m.weight.data.uniform_(-stdv, stdv)
-        m.bias.data.zero_()
+
 
 
 def _save_checkpoint(model, state_dict, save_txt=True):
@@ -61,17 +58,17 @@ def train(model, optimizer, train_loader, test_loader, scorer_list,
                  '".format(sub_working_dir))
     ts_writer["tensorboard_writer"] = SummaryWriter(sub_working_dir)
     model.config["global_step"] = 0
-    if optimizer_name == 'sgd':
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(
-            optimizer,
-            step_size=model.config['sch_steps'],
-            gamma=model.config['sch_gamma'])
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(
+                                        optimizer,
+                                        step_size=model.config['sch_steps'],
+                                        gamma=model.config['sch_gamma'])
     if cuda:
         model = model.cuda()
     model.train()
     logging.info("Start training.")
     for epoch in range(model.config['epochs']):
         save = 1
+        eva = 1
         logging.info("this is epoch :{}".format(epoch))
         for step, samples in enumerate(train_loader):
             if cuda:
@@ -102,15 +99,17 @@ def train(model, optimizer, train_loader, test_loader, scorer_list,
                                             'loss',
                                             _loss,
                                             model.config["global_step"])
-                if save and (epoch+1) % model.config['save_epoch'] == 0:
-                    _save_checkpoint(model, model.state_dict(), save_txt)
+                if eva and (epoch+1) % model.config['eva_epoch'] == 0:
                     evaluate(model, test_loader, scorer_list,
                              ts_writer, cuda)
+                    eva = 0
+                if save and (epoch+1) % model.config['save_epoch'] == 0:
+                    _save_checkpoint(model, model.state_dict(), save_txt)
                     save = 0
-        if optimizer_name == 'sgd':
-            lr_scheduler.step()
-    _save_checkpoint(model, model.state_dict(), save_txt)
+
+        lr_scheduler.step()
     evaluate(model, test_loader, scorer_list, ts_writer, cuda)
+    _save_checkpoint(model, model.state_dict(), save_txt)
     logging.info("Bye~")
 
 
@@ -125,9 +124,11 @@ def main(model, x, y, cuda, optimizer_name):
                                 lr=model.config["learning_rate"],
                                 weight_decay=model.config["decay"])}
     optimizer = optimizer_dic[optimizer_name.lower()]
+    one_off_set = Within_n_rank(1)
     two_off_set = Within_n_rank(2)
     scorer_list = {'quadratic_weighted_kappa': quadratic_weighted_kappa,
                    'f1_score': f1_score,
+                   'one_off_set': one_off_set,
                    'two_off_set': two_off_set,
                    'accuracy_score': accuracy_score}
     s = StratifiedShuffleSplit(n_splits=1, test_size=0.2)
@@ -140,12 +141,12 @@ def main(model, x, y, cuda, optimizer_name):
                           train=True)
     train_loader = DataLoader(train_data, shuffle=True,
                               batch_size=int(len(train_data)*0.9),
-                              num_workers=6, worker_init_fn=worker_init_fn)
+                              num_workers=0, worker_init_fn=worker_init_fn)
     test_data = CustData(valid_x, valid_y, model.config['label_num'],
                          train=True)
     test_loader = DataLoader(test_data, shuffle=False,
                              batch_size=len(test_data),
-                             num_workers=6, worker_init_fn=worker_init_fn)
+                             num_workers=0, worker_init_fn=worker_init_fn)
     # Start training
     train(model, optimizer, train_loader, test_loader, scorer_list,
           cuda, optimizer_name.lower())

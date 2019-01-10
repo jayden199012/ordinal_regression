@@ -76,7 +76,7 @@ class Ordinal_regression(nn.Module):
             else:
                 x += cache
         if is_training:
-            loss = self.bce_loss(x, labels)
+            loss = self.bce_loss(torch.sqrt(x), torch.sqrt(labels))
             return loss
         else:
             prediction = torch.sum(x.round(), dim=1) + 1
