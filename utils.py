@@ -2,6 +2,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.impute import SimpleImputer
+pd.set_option("display.max_columns", 100)
 
 
 def worker_init_fn(worker_id):
@@ -87,29 +91,135 @@ def histogram(ratings, min_rating=None, max_rating=None):
         hist_ratings[r - min_rating] += 1
     return hist_ratings
 
-# global variables
-def prep_data():
-    missing_indicator = -1000
+
+def prep_data(pca=False, pca_scale=False, inputation=False,
+              strategy='median', remove_low_variance=False,
+              variacne_thresh=0.0001):
     train = pd.read_csv("../1RawData/train.csv")
     test = pd.read_csv("../1TestData/test.csv")
     # combine train and test
     all_data = train.append(test)
-    # create any new variables    
+
+    # set the right data_type
+    description = all_data.describe(include='all').append(
+                    [all_data.isnull().sum().rename('null_vals'),
+                     all_data.dtypes.rename('data_types')])
+    categorical_des = description.loc[:, all_data.dtypes == 'int64']
+    categorical_variables = list(categorical_des.columns)
+    all_data.loc[:, categorical_variables] =\
+        all_data.loc[:, categorical_variables].astype(object)
+#    all_data.dtypes.value_counts()
+
+    # create any new variables
     all_data['Product_Info_2_char'] = all_data.Product_Info_2.str[0]
     all_data['Product_Info_2_num'] = all_data.Product_Info_2.str[1]
     # factorize categorical variables
     all_data['Product_Info_2'] = pd.factorize(all_data['Product_Info_2'])[0]
-    all_data['Product_Info_2_char'] = pd.factorize(all_data['Product_Info_2_char'])[0]
-    all_data['Product_Info_2_num'] = pd.factorize(all_data['Product_Info_2_num'])[0]
+    all_data['Product_Info_2_char'] =\
+        pd.factorize(all_data['Product_Info_2_char'])[0]
+    all_data['Product_Info_2_num'] =\
+        pd.factorize(all_data['Product_Info_2_num'])[0]
     all_data['BMI_Age'] = all_data['BMI'] * all_data['Ins_Age']
-    med_keyword_columns = all_data.columns[all_data.columns.str.startswith('Medical_Keyword_')]
+    med_keyword_columns =\
+        all_data.columns[all_data.columns.str.startswith('Medical_Keyword_')]
     all_data['Med_Keywords_Count'] = all_data[med_keyword_columns].sum(axis=1)
-    all_data.fillna(missing_indicator, inplace=True)
+    all_data['Med_Keywords_avg'] = all_data[med_keyword_columns].mean(axis=1)
+    all_data['count_na'] = all_data.isnull().sum(axis=1)
+
     # fix the dtype on the label column
+    all_data['Response'].fillna(-1, inplace=True)
     all_data['Response'] = all_data['Response'].astype(int)
+
+    # deal with cat and numeric variables
+    numeric_des = description.loc[:, (all_data.dtypes == 'float64') |
+                                     (all_data.dtypes == 'int64')]
+    numeric_variables = list(numeric_des.columns)
+#    for item in categorical_variables:
+#        print(f"{item}: {len(all_data[item].value_counts())}")
+
+    # from numeric description
+#    num_suspicious_list = [ 'Medical_History_1', 'Medical_History_10',
+#                           'Medical_History_15', 'Medical_History_24',
+#                           'Medical_History_32',]
+    cat_suspicious_list = ['Medical_History_2']
+#    for item in num_suspicious_list:
+#            print(f"{item}: {all_data[item].value_counts()}")
+#    categorical_des[cat_suspicious_list]
+
+    # variable type adjustment
+    categorical_variables = list(set(categorical_variables) -
+                                 set(['Medical_History_2', 'Id']))
+    numeric_variables.append(cat_suspicious_list[0])
+    
+    # seperate numeric and categorical data and handle them seperatly
+    all_cat_data = all_data.loc[:, categorical_variables]
+    all_numeric_data = all_data.loc[:, numeric_variables]
+
+    # Inspect missing values for numeric variables
+    # There is no missing values in categorical variables
+#    na_col = all_numeric_data.columns[all_numeric_data.isnull().sum() > 0]
+#    na_des = description[na_col]
+    
+    if inputation:
+        inputer = SimpleImputer(strategy=strategy)
+        all_numeric_data[:] = inputer.fit_transform(all_numeric_data)
+    else:
+        # type one variable has min max 0 and 1 
+        type_1_variable = ['Employment_Info_1', 'Employment_Info_4',
+                           'Employment_Info_6', 'Family_Hist_2', 'Family_Hist_3',
+                           'Family_Hist_4', 'Family_Hist_5', 'Insurance_History_5']
+        # type two variable has min max 0 and 240
+        type_2_variable = ['Medical_History_1', 'Medical_History_10',
+                           'Medical_History_15', 'Medical_History_24',
+                           'Medical_History_32']
+        type_1_inpute = -1
+        type_2_inpute = -240
+
+        # we cant use df.fillna(replace=True) as all_numeric_data is a chain
+        # assignment
+        all_numeric_data[type_1_variable] = all_numeric_data[
+                                         type_1_variable].fillna(type_1_inpute)
+        all_numeric_data[type_2_variable] = all_numeric_data[
+                                         type_2_variable].fillna(type_2_inpute)
+
+    # one hot encode cat variables
+    all_cat_data = pd.get_dummies(all_cat_data, columns=categorical_variables)
+#    all_cat_data.shape
+#    all_cat_data.dtypes
+    # pca cat variables
+    if pca:
+        pca = PCA().fit(all_cat_data)
+        explain = np.cumsum(pca.explained_variance_ratio_)
+        pca_dimenssion_k = np.where(explain > 0.99)[0][0] + 1
+        pca_k = PCA(n_components=pca_dimenssion_k)
+        cat_pca = pca_k.fit_transform(all_cat_data)
+        cat_pca = pd.DataFrame(cat_pca)
+#        cat_pca.describe()
+
+    # Normalize
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    all_numeric_data[:] = scaler.fit_transform(all_numeric_data)
+#    all_numeric_data.isnull().sum()
+    if pca_scale:
+        cat_pca = scaler.fit_transform(cat_pca)
+        
+    # concat all data
+    if pca:
+        cat_pca.index = all_numeric_data.index
+        all_data_transformed = pd.concat([cat_pca, all_numeric_data,
+                                          all_data.Response], axis=1)
+    else:
+        all_data_transformed = pd.concat([all_cat_data, all_numeric_data,
+                                          all_data.Response], axis=1)
+    if not pca and remove_low_variance:
+        variabel_variance = all_data_transformed.var(axis=0)
+        low_var_col = list(variabel_variance[
+                        variabel_variance < variacne_thresh].index)
+        all_data_transformed = all_data_transformed.drop(low_var_col, axis=1)
+
     # split train and test
-    train = all_data[all_data['Response']>0].copy()
-    test = all_data[all_data['Response']<1].copy()
+    train = all_data_transformed[all_data_transformed['Response'] > 0].copy()
+    test = all_data_transformed[all_data_transformed['Response'] < 1].copy()
     return train, test
 
 

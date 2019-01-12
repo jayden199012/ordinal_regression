@@ -36,7 +36,7 @@ def cross_validation(model_list, x, y, splitter, scorer_list, average=None,
         train_x, train_y = x.iloc[train_index, :], y[train_index]
         valid_x, valid_y = x.iloc[val_index, :], y[val_index]
         results['train_index'].append(train_index)
-        results['val_index'].append[val_index]
+        results['val_index'].append(val_index)
         for model_name, model in model_list.items():
             model.fit(train_x, train_y)
             train_y_pred = model.predict(train_x)
