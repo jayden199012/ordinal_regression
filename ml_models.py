@@ -1,5 +1,6 @@
 from sklearn import linear_model
 from xgboost import XGBClassifier
+import numpy as np
 
 
 class TwoStepRegression():
@@ -33,12 +34,16 @@ class TwoStepRegression():
 
 
 class OrdinalXGBAll():
-    def __init__(self, param_list):
+    def __init__(self, param_list, individual=True, num_cls=7):
         self.param_list = param_list
         self.models = {}
         self.y_pred = []
-        for index, param in enumerate(param_list):
-            self.models[f"{index+1}"] = XGBClassifier(**param)
+        if individual:
+            for index, param in enumerate(param_list):
+                self.models[f"{index+1}"] = XGBClassifier(**param)
+        else:
+            for index in range(num_cls):
+                self.models[f"{index+1}"] = XGBClassifier(**param_list)
 
     def fit(self, x, y):
         for index, model in enumerate(self.models.values()):
@@ -46,6 +51,7 @@ class OrdinalXGBAll():
             model.fit(x, y_)
 
     def predict(self, x):
+        self.y_pred = np.ones(x.shape[0])
         for model in self.models.values():
             self.y_pred += model.predict(x)
         return self.y_pred
@@ -58,15 +64,11 @@ class OrdinalXGBSeperate():
         self.cls = cls
 
     def fit(self, x, y):
-        y_ = y > self.cls
-        print(y_.shape)
-        print(x.shape)
+        y_ = np.array(y > self.cls).astype(int)
         self.xgb_model.fit(x, y_)
 
     def predict(self, x):
         y_pred = self.xgb_model.predict(x)
-        print(x.shape)
-        print(y_pred.shape)
         return y_pred
 
     def __call__(self, x):

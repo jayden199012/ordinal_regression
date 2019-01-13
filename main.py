@@ -6,16 +6,24 @@ from scipy.optimize import fmin_powell
 from sklearn.metrics import f1_score, accuracy_score
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.linear_model import Lasso
-from ml_models import TwoStepRegression, OrdinalXGBSeperate
+from ml_models import TwoStepRegression, OrdinalXGBSeperate, OrdinalXGBAll()
 from utils import prep_data, quadratic_weighted_kappa, train_offset, digit,\
     feature_importance_plot
 from evaluate import y_transform, cross_validation, Within_n_rank
 import mord
 import random
+import warnings
+import logging
+warnings.filterwarnings("ignore")
+logging.basicConfig(level=logging.DEBUG,
+                        format="[%(asctime)s %(filename)s] %(message)s")
 # =============================================================================
 # data
 # =============================================================================
 train, test = prep_data()
+train, test = prep_data(pca=True, pca_scale=True, inputation=True,
+              strategy='median', remove_low_variance=False)
+
 columns_to_drop = ['Response']
 x = train.drop(columns_to_drop, axis=1)
 y = train.Response-1
@@ -137,7 +145,7 @@ seed = 1
 random.seed(seed)
 np.random.seed(seed)
 two_off_set = Within_n_rank(2)
-num_cls = 8
+num_cls = 7
 x0 = (1, 2., 3., 4., 5., 6., 7.)
 xgb_binary_param = {'max_depth': 4,
                     'eta': 0.001,
@@ -146,28 +154,30 @@ xgb_binary_param = {'max_depth': 4,
                     'subsample': 0.5,
                     'early_stopping_rounds': 100,
                     'objective': 'binary:logistic',
-                    'num_class': 8,
-                    'n_estimators': 1,
+                    'n_estimators': 2000,
                     'colsample_bytree': 0.3,
                     'seed': 1}
 
 models = {}
 for i in range(num_cls):
     model_ = OrdinalXGBSeperate(xgb_binary_param, cls=i)
-    models[i+1] = model_
+    models[f"Binary_XGB_{i+1}"] = model_
 s = StratifiedShuffleSplit(n_splits=5, test_size=0.2)
-scorer_list = {'f1_score': f1_score,
+
+seven_xgb = OrdinalXGBAll(xgb_binary_param,individual=False, num_cls=num_cls)
+#models["Binary_XGB_1"].fit(x, y)
+#models["Binary_XGB_1"].xgb_model.fit(x, y)
+#models["Binary_XGB_1"].xgb_model.predict(x)
+#scorer_list = {'f1_score': f1_score,
+#               'accuracy_score': accuracy_score}
+scorer_list = {'quadratic_weighted_kappa': quadratic_weighted_kappa,
+               'f1_score': f1_score,
+               'two_off_set': two_off_set,
                'accuracy_score': accuracy_score}
-results = cross_validation(models, x, y, s, scorer_list,
-                           y_tranformation=False, average='binary', x0=x0,
+model_list = {'seven_xgb': seven_xgb}
+results = cross_validation(model_list, x, y, s, scorer_list,
+                           y_tranformation=False, average='macro', x0=x0,
                            maxiter=20000)
-models[1].xgb_model.fit(x, y)
-try_mod = OrdinalXGBSeperate(xgb_binary_param, cls=0)
-try_mod.xgb_model.fit(x, y)
-try_mod.fit(x, y)
-xg = XGBClassifier(**xgb_binary_param)
-y_ = y >0
-xg.fit(x, y_)
 # =============================================================================
 # cross validation for all models
 # =============================================================================
@@ -188,14 +198,15 @@ scorer_list = {'quadratic_weighted_kappa': quadratic_weighted_kappa,
                'two_off_set': two_off_set,
                'accuracy_score': accuracy_score}
 
-model_list = {'lasso': lasso,
-              'xgbr': xgbr,
-              'two_step_regression': tsr}
+#model_list = {'lasso': lasso,
+#              'xgbr': xgbr,
+#              'two_step_regression': tsr}
+model_list = {'xgb_classifier': xgb_classifier}
 results = cross_validation(model_list, x, y, s, scorer_list,
-                           y_tranformation=y_transform, average='macro', x0=x0,
+                           y_tranformation=False, average='macro', x0=x0,
                            maxiter=20000)
-accuracy_score(y, train_y_pred)
-Within_n_rank(y, train_y_pred)
+
+
 # =============================================================================
 # Tuning
 # =============================================================================
@@ -230,3 +241,4 @@ y_pred = np.asarray(digit(offsets, test_pred))
 submission = pd.read_csv('../1TestData/sample_submission.csv', index_col=0)
 submission['Response'] = y_pred.astype('int32')
 submission.to_csv('submit.csv')
+results__ = results.copy()

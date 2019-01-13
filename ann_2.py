@@ -31,7 +31,7 @@ def create_module(input_dim, output_dim, label_num, num_of_layers,
             input_dim = output_dim
             module.add_module(f"hidden_layer_{i}", ln)
             module.add_module(f"LeakyReLU_{i}", nn.LeakyReLU())
-            module.add_module(f"dropout_{i}", nn.Dropout(p=0.1))
+            module.add_module(f"dropout_{i}", nn.Dropout(p=0.2))
         else:
             special_layer(module, i, 'scl')
         module_list.append(module)

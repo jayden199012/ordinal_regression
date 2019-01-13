@@ -17,7 +17,8 @@ class empty_layer(nn.Module):
 def special_layer(module, layer_index, layer_name):
     scl = empty_layer()
     module.add_module(f"{layer_name}_{layer_index}", scl)
-    
+
+
 def create_module(input_dim, output_dim, label_num, num_of_layers,
                   start, step):
     module_list = nn.ModuleList()
@@ -28,10 +29,12 @@ def create_module(input_dim, output_dim, label_num, num_of_layers,
         module = nn.Sequential()
         if i not in short_cut_layers:
             ln = nn.Linear(input_dim, output_dim)
+            bn = nn.BatchNorm2d(output_dim)
             input_dim = output_dim
             module.add_module(f"hidden_layer_{i}", ln)
             module.add_module(f"LeakyReLU_{i}", nn.LeakyReLU())
-            module.add_module(f"dropout_{i}", nn.Dropout(p=0.1))
+            module.add_module(f"bach_norm_{i}", bn)
+            module.add_module(f"dropout_{i}", nn.Dropout(p=0.2))
         else:
             special_layer(module, i, 'scl')
         module_list.append(module)
@@ -67,7 +70,7 @@ class Ordinal_regression(nn.Module):
 
     def forward(self, x, cuda, is_training=False, labels=None):
         if cuda:
-            self.bce_loss = self.bce_loss.cuda()
+            loss = self.bce_loss(torch.sqrt(x), torch.sqrt(labels))
         for index, layer in enumerate(self.modules_list):
             if index not in self.short_cut_layers:
                 x = self.modules_list[index](x)

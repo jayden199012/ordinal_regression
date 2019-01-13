@@ -22,14 +22,12 @@ if __name__ == '__main__':
         logging.basicConfig(level=logging.DEBUG,
                             format="[%(asctime)s %(filename)s] %(message)s")
         cuda = True
-        train_set, test_set = prep_data()
-        columns_to_drop = ['Id', 'Response']
-        x = train_set.drop(columns_to_drop, axis=1)
-        scaler = MinMaxScaler(feature_range=(0, 1))
-        x_scaled = x.copy()
-        x_scaled[:] = scaler.fit_transform(x_scaled)
-        y = train_set.Response-1
-        input_dim = len(x_scaled.columns)
+        train, test = prep_data(pca=True, pca_scale=True, inputation=True,
+              strategy='median', remove_low_variance=True)
+        columns_to_drop = ['Response']
+        x = train.drop(columns_to_drop, axis=1)
+        y = train.Response-1
+        input_dim = len(x.columns)
         #    with open('../5Others/config.txt', 'w') as fp:
 #            fp.write(json.dumps(param, indent=4))
 #        with open('../5Others/2019-01-07_00_57_25.027646.txt', 'rb') as fp:
@@ -44,10 +42,10 @@ if __name__ == '__main__':
             param['output_dim'] = num_nodes
             for layer_number in layer_numbers:
                 param['num_of_layers'] = layer_number
-                param['working_dir'] = (f"{w_dir}_2/" + 
+                param['working_dir'] = (f"{w_dir}/" + 
                                         f"num_nodes_{num_nodes}_" +
                                         f"layer_number_{layer_number}/")
                 model = Ordinal_regression(create_module, config=param)
                 print(model.state_dict())
                 print(model.modules_list)
-                main(model, x_scaled, y, cuda, optimizer_name='adam')
+                main(model, x, y, cuda, optimizer_name='adam')

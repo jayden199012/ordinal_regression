@@ -38,9 +38,15 @@ def cross_validation(model_list, x, y, splitter, scorer_list, average=None,
         results['train_index'].append(train_index)
         results['val_index'].append(val_index)
         for model_name, model in model_list.items():
+            if model_name[:10] == "Binary_XGB":
+                threshold = int(model_name[-1])-1
+                train_y = np.array(train_y > threshold).astype(int)
             model.fit(train_x, train_y)
             train_y_pred = model.predict(train_x)
             y_pred = model.predict(valid_x)
+            if model_name[:10] == "Binary_XGB":
+                threshold = int(model_name[-1])-1
+                valid_y = np.array(valid_y > threshold).astype(int)
             if y_tranformation:
                 y_pred = y_transform(train_y_pred, train_y, y_pred, **kargs)
             for scorer_name, scorer in scorer_list.items():
@@ -48,6 +54,7 @@ def cross_validation(model_list, x, y, splitter, scorer_list, average=None,
                     score = scorer(valid_y, y_pred)
                 except ValueError:
                     score = scorer(valid_y, y_pred, average=average)
+                print(f"{model_name}: {scorer_name}: {score}")
                 results[model_name][scorer_name].append(score)
     for model_name, model in model_list.items():
         for scorer_name, scorer in scorer_list.items():
