@@ -6,6 +6,8 @@ import numpy as np
 def weights_init(m, stdv=0.05):
     if isinstance(m, nn.Linear):
         m.weight.data.uniform_(-stdv, stdv)
+    if isinstance(m, nn.BatchNorm1d):
+        m.weight.data.uniform_(-stdv, stdv)
         m.bias.data.zero_()
 
 
@@ -29,7 +31,7 @@ def create_module(input_dim, output_dim, label_num, num_of_layers,
         module = nn.Sequential()
         if i not in short_cut_layers:
             ln = nn.Linear(input_dim, output_dim)
-            bn = nn.BatchNorm2d(output_dim)
+            bn = nn.BatchNorm1d(output_dim)
             input_dim = output_dim
             module.add_module(f"hidden_layer_{i}", ln)
             module.add_module(f"LeakyReLU_{i}", nn.LeakyReLU())
@@ -44,10 +46,10 @@ def create_module(input_dim, output_dim, label_num, num_of_layers,
 
 
 class Ordinal_regression(nn.Module):
-    def __init__(self, craete_module, config):
+    def __init__(self, craete_module, config, input_dim):
         super().__init__()
         self.config = config.copy()
-        self.input_dim = self.config['input_dim']
+        self.input_dim = input_dim
         self.output_dim = self.config['output_dim']
         self.label_num = self.config['label_num']
         self.num_of_layers = self.config['num_of_layers']
@@ -70,7 +72,7 @@ class Ordinal_regression(nn.Module):
 
     def forward(self, x, cuda, is_training=False, labels=None):
         if cuda:
-            loss = self.bce_loss(torch.sqrt(x), torch.sqrt(labels))
+            self.bce_loss = self.bce_loss.cuda()
         for index, layer in enumerate(self.modules_list):
             if index not in self.short_cut_layers:
                 x = self.modules_list[index](x)
@@ -79,7 +81,7 @@ class Ordinal_regression(nn.Module):
             else:
                 x += cache
         if is_training:
-            loss = self.bce_loss(x, labels)
+            loss = self.bce_loss(torch.sqrt(x), torch.sqrt(labels))
             return loss
         else:
             prediction = torch.sum(x.round(), dim=1) + 1

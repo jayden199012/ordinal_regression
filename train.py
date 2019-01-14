@@ -164,22 +164,20 @@ if __name__ == '__main__':
         train_set, test_set = prep_data()
         columns_to_drop = ['Id', 'Response']
         x = train_set.drop(columns_to_drop, axis=1)
-        scaler = MinMaxScaler(feature_range=(0, 1))
-        x_scaled = x.copy()
-        x_scaled[:] = scaler.fit_transform(x_scaled)
         y = train_set.Response-1
-        input_dim = len(x_scaled.columns)
+        input_dim = len(x.columns)
         #    with open('../5Others/config.txt', 'w') as fp:
 #            fp.write(json.dumps(param, indent=4))
         with open('../5Others/2019-01-07_00_57_25.027646.txt', 'rb') as fp:
 #        with open('../5Others/config.txt', 'rb') as fp:
     #    with open('../4TrainingWeights/2019-01-06_00_40_22.960024/2019-01-06_02_39_53.326797.txt', 'rb') as fp:
             param = json.load(fp)
-        model = Ordinal_regression(create_module, config=param)
+        model = Ordinal_regression(create_module, config=param,
+                                   input_dim=input_dim)
     #    if param['pretrain_snapshot']:
     #        state_dic = torch.load(param['pretrain_snapshot'])
     #        model.load_state_dict(state_dic)
 #        model.apply(weights_init)
         print(model.state_dict())
         print(model.modules_list)
-        main(model, x_scaled, y, cuda, optimizer_name='adam')
+        main(model, x, y, cuda, optimizer_name='adam')

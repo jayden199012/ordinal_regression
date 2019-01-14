@@ -41,22 +41,19 @@ def main():
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     cuda = True
-    train, test = prep_data()
-    columns_to_drop = ['Id', 'Response']
-    x = train.drop(columns_to_drop, axis=1)
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaler.fit(x)
-    test_x = test.drop(columns_to_drop, axis=1)
-    test_x_scaled = test_x.copy()
-    test_x_scaled[:] = scaler.transform(test_x_scaled)
-    test_data = CustData(test_x_scaled)
+    train, test = prep_data(pca=True, pca_scale=True, inputation=True,
+                            strategy='median', remove_low_variance=False)
+    columns_to_drop = ['Response']
+    test = test.drop(columns_to_drop, axis=1)
+    test_data = CustData(test)
     test_loader = DataLoader(test_data, batch_size=len(test_data), num_workers=6,
                              worker_init_fn=worker_init_fn)
     #with open('../5Others/config.txt', 'rb') as fp:
-    with open('../4TrainingWeights/tuning/num_node_layer_num_2/num_nodes_4_layer_number_1/2019-01-09_19_52_05.228091/2019-01-09_20_58_52.175551.txt', 'rb') as fp:
+    with open('../4TrainingWeights/tuning_2/num_node_layer_num/num_nodes_8_layer_number_4/2019-01-13_18_43_56.943321\\2019-01-13_19_10_15.346180.txt', 'rb') as fp:
     #with open('../4TrainingWeights/2019-01-06_09_45_38.867660/2019-01-06_11_28_41.798519.txt', 'rb') as fp:
         param = json.load(fp)
-    model = Ordinal_regression(create_module, config=param)
+    input_dim = len(test.columns)
+    model = Ordinal_regression(create_module, config=param, input_dim=input_dim)
     #state_dic = torch.load('../4TrainingWeights/2019-01-06_20_43_56.362198/2019-01-06_21_04_05.995207.pth')
     #model.load_state_dict(state_dic)
     if cuda:

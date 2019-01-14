@@ -23,7 +23,7 @@ if __name__ == '__main__':
                             format="[%(asctime)s %(filename)s] %(message)s")
         cuda = True
         train, test = prep_data(pca=True, pca_scale=True, inputation=True,
-              strategy='median', remove_low_variance=True)
+              strategy='median', remove_low_variance=False)
         columns_to_drop = ['Response']
         x = train.drop(columns_to_drop, axis=1)
         y = train.Response-1
@@ -38,6 +38,7 @@ if __name__ == '__main__':
         w_dir = param['working_dir']
         num_nodes_list = [4, 8, 16, 32, 64, 128, 256]
         layer_numbers = [1, 2, 3, 4]
+        input_dim = len(x.columns)
         for num_nodes in num_nodes_list:
             param['output_dim'] = num_nodes
             for layer_number in layer_numbers:
@@ -45,7 +46,8 @@ if __name__ == '__main__':
                 param['working_dir'] = (f"{w_dir}/" + 
                                         f"num_nodes_{num_nodes}_" +
                                         f"layer_number_{layer_number}/")
-                model = Ordinal_regression(create_module, config=param)
+                model = Ordinal_regression(create_module, config=param,
+                                           input_dim=input_dim)
                 print(model.state_dict())
                 print(model.modules_list)
                 main(model, x, y, cuda, optimizer_name='adam')

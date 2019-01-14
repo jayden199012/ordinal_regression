@@ -41,10 +41,10 @@ def create_module(input_dim, output_dim, label_num, num_of_layers,
 
 
 class Ordinal_regression(nn.Module):
-    def __init__(self, craete_module, config):
+    def __init__(self, craete_module, config, input_dim):
         super().__init__()
         self.config = config.copy()
-        self.input_dim = self.config['input_dim']
+        self.input_dim = input_dim
         self.output_dim = self.config['output_dim']
         self.label_num = self.config['label_num']
         self.num_of_layers = self.config['num_of_layers']

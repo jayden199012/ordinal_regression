@@ -113,12 +113,12 @@ def prep_data(pca=False, pca_scale=False, inputation=False,
     # create any new variables
     all_data['Product_Info_2_char'] = all_data.Product_Info_2.str[0]
     all_data['Product_Info_2_num'] = all_data.Product_Info_2.str[1]
-    # factorize categorical variables
-    all_data['Product_Info_2'] = pd.factorize(all_data['Product_Info_2'])[0]
-    all_data['Product_Info_2_char'] =\
-        pd.factorize(all_data['Product_Info_2_char'])[0]
-    all_data['Product_Info_2_num'] =\
-        pd.factorize(all_data['Product_Info_2_num'])[0]
+#    # factorize categorical variables
+#    all_data['Product_Info_2'] = pd.factorize(all_data['Product_Info_2'])[0]
+#    all_data['Product_Info_2_char'] =\
+#        pd.factorize(all_data['Product_Info_2_char'])[0]
+#    all_data['Product_Info_2_num'] =\
+#        pd.factorize(all_data['Product_Info_2_num'])[0]
     all_data['BMI_Age'] = all_data['BMI'] * all_data['Ins_Age']
     med_keyword_columns =\
         all_data.columns[all_data.columns.str.startswith('Medical_Keyword_')]
@@ -190,7 +190,7 @@ def prep_data(pca=False, pca_scale=False, inputation=False,
     if pca:
         pca = PCA().fit(all_cat_data)
         explain = np.cumsum(pca.explained_variance_ratio_)
-        pca_dimenssion_k = np.where(explain > 0.99)[0][0] + 1
+        pca_dimenssion_k = np.where(explain > 0.999)[0][0] + 1
         pca_k = PCA(n_components=pca_dimenssion_k)
         cat_pca = pca_k.fit_transform(all_cat_data)
         cat_pca = pd.DataFrame(cat_pca)
@@ -201,7 +201,7 @@ def prep_data(pca=False, pca_scale=False, inputation=False,
     all_numeric_data[:] = scaler.fit_transform(all_numeric_data)
 #    all_numeric_data.isnull().sum()
     if pca_scale:
-        cat_pca = scaler.fit_transform(cat_pca)
+        cat_pca[:] = scaler.fit_transform(cat_pca)
         
     # concat all data
     if pca:
