@@ -6,7 +6,7 @@ from scipy.optimize import fmin_powell
 from sklearn.metrics import f1_score, accuracy_score
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.linear_model import Lasso
-from ml_models import TwoStepRegression, OrdinalXGBSeperate, OrdinalXGBAll()
+from ml_models import TwoStepRegression, OrdinalXGBSeperate, OrdinalXGBAll
 from utils import prep_data, quadratic_weighted_kappa, train_offset, digit,\
     feature_importance_plot
 from evaluate import y_transform, cross_validation, Within_n_rank
@@ -182,6 +182,7 @@ results = cross_validation(model_list, x, y, s, scorer_list,
 # cross validation for all models
 # =============================================================================
 # initiate with_n_rank object
+one_off_set = Within_n_rank(1)
 two_off_set = Within_n_rank(2)
 
 # set seed
@@ -195,14 +196,21 @@ x0 = (1, 2., 3., 4., 5., 6., 7.)
 s = StratifiedShuffleSplit(n_splits=5, test_size=0.2)
 scorer_list = {'quadratic_weighted_kappa': quadratic_weighted_kappa,
                'f1_score': f1_score,
+               'one_off_set': one_off_set,
                'two_off_set': two_off_set,
                'accuracy_score': accuracy_score}
 
-#model_list = {'lasso': lasso,
-#              'xgbr': xgbr,
-#              'two_step_regression': tsr}
-model_list = {'xgb_classifier': xgb_classifier}
-results = cross_validation(model_list, x, y, s, scorer_list,
+model_list = {'lasso': lasso,
+              'xgbr': xgbr,
+              'two_step_regression': tsr}
+results_reg = cross_validation(model_list, x, y, s, scorer_list,
+                           y_tranformation=y_transform, average='macro', x0=x0,
+                           maxiter=20000)
+model_list = {'xgb_classifier': xgb_classifier,
+              'lad_model_IT': lad_model_IT,
+              'lad_model_AT': lad_model_AT}
+              
+results_cls = cross_validation(model_list, x, y, s, scorer_list,
                            y_tranformation=False, average='macro', x0=x0,
                            maxiter=20000)
 
